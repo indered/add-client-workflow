@@ -1,153 +1,82 @@
-import { FormEvent, ReactNode, useMemo, useState } from 'react';
-import {
-  ArrowLeft,
-  CalendarDays,
-  CheckCircle2,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Clock3,
-  Copy,
-  FileText,
-  Home,
-  Link2,
-  Mail,
-  MessageCircle,
-  MoreHorizontal,
-  Plus,
-  Search,
-  Send,
-  Settings,
-  SlidersHorizontal,
-  Sparkles,
-  Sun,
-  User,
-  UserRoundPlus,
-  Users,
-  X,
-} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Avatar, Button, Card, Heading, Input, Typography } from '@heroui/react';
+import { useLocation, useNavigate } from 'react-router';
+import { AdvisorLogin } from './components/auth/AdvisorLogin';
+import { AddClientModal } from './components/add-client/AddClientModal';
+import { CtaButton } from './components/common/CtaButton';
+import { Dropdown } from './components/common/Dropdown';
+import { MetricCard } from './components/common/MetricCard';
+import { ClientDataView } from './components/client/ClientDataView';
+import { ClientDetailView } from './components/client/ClientDetailView';
+import { ClientIntakeForm } from './components/intake/ClientIntakeForm';
+import { EmailConnectPage } from './components/share/EmailConnectPage';
+import { SettingsView } from './components/settings/SettingsView';
+import { initialClients, intakeOptions, statusOptions, stepOptions, todayLabel } from './data/dashboard';
+import { getIntakeTokenFromPath } from './data/intakeLinks';
+import { getEmailConnectTarget } from './data/shareLinks';
+import { clientsStorageKey, loadClients, saveClients } from './data/clientStore';
+import type { AddOutcome, Client, ClientForm } from './types';
 
-type ClientStatus = 'Invited' | 'In Progress' | 'Completed' | 'Quick Plan';
-type IntakeType = 'Full Intake' | 'Quick Plan';
-type AddMode = 'invite' | 'quick' | 'behalf';
-
-type Client = {
-  id: number;
-  name: string;
-  initials: string;
-  email: string;
-  phone: string;
-  status: ClientStatus;
-  intakeType: IntakeType;
-  step: string;
-  progress: number;
-  invitedOn: string;
-  lastActivity: string;
-  tone: 'violet' | 'mint' | 'photo' | 'amber' | 'rose';
-};
-
-const initialClients: Client[] = [
-  {
-    id: 1,
-    name: 'Sarah Miller',
-    initials: 'SM',
-    email: 'sarah.miller@gmail.com',
-    phone: '+1 (415) 555-0123',
-    status: 'Invited',
-    intakeType: 'Full Intake',
-    step: 'Not started',
-    progress: 0,
-    invitedOn: 'May 20, 2025 10:30 AM',
-    lastActivity: 'May 20, 2025 10:30 AM',
-    tone: 'violet',
-  },
-  {
-    id: 2,
-    name: 'Robert Johnson',
-    initials: 'RJ',
-    email: 'robert.j@example.com',
-    phone: '+1 (415) 555-0188',
-    status: 'Invited',
-    intakeType: 'Full Intake',
-    step: 'Not started',
-    progress: 0,
-    invitedOn: 'May 19, 2025 2:15 PM',
-    lastActivity: 'May 19, 2025 2:15 PM',
-    tone: 'mint',
-  },
-  {
-    id: 3,
-    name: 'Emily Davis',
-    initials: 'ED',
-    email: 'emily.davis@company.com',
-    phone: '+1 (415) 555-0199',
-    status: 'In Progress',
-    intakeType: 'Full Intake',
-    step: 'Step 2 of 6',
-    progress: 33,
-    invitedOn: 'May 18, 2025 11:20 AM',
-    lastActivity: 'Today 9:15 AM',
-    tone: 'photo',
-  },
-  {
-    id: 4,
-    name: 'Lisa Williams',
-    initials: 'LW',
-    email: 'lisa.williams@gmail.com',
-    phone: '+1 (415) 555-0111',
-    status: 'Completed',
-    intakeType: 'Full Intake',
-    step: 'Completed',
-    progress: 100,
-    invitedOn: 'May 10, 2025 9:00 AM',
-    lastActivity: 'May 12, 2025 10:00 AM',
-    tone: 'amber',
-  },
-  {
-    id: 5,
-    name: 'Amanda Taylor',
-    initials: 'AT',
-    email: 'amanda.taylor@gmail.com',
-    phone: '+1 (415) 555-0177',
-    status: 'Quick Plan',
-    intakeType: 'Quick Plan',
-    step: 'Quick plan created',
-    progress: 0,
-    invitedOn: 'May 21, 2025 9:45 AM',
-    lastActivity: 'May 21, 2025 9:45 AM',
-    tone: 'rose',
-  },
-];
-
-const statusOptions = ['All Statuses', 'Invited', 'In Progress', 'Completed', 'Quick Plan'];
-const intakeOptions = ['All Types', 'Full Intake', 'Quick Plan'];
-const stepOptions = ['All Steps', 'Not started', 'Step 2 of 6', 'Completed', 'Quick plan created'];
-
-const modeLabels: Record<AddMode, string> = {
-  invite: 'Send intake link',
-  quick: 'Quick form',
-  behalf: 'Fill intake on behalf',
-};
-
-const todayLabel = 'Jul 1, 2026 9:41 PM';
+const dateRangeOptions = ['Last 30 days', 'Last 60 days', 'This year'];
+const themeOptions = ['Light', 'Dark'] as const;
 
 function App() {
-  const [clients, setClients] = useState(initialClients);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const intakeToken = getIntakeTokenFromPath(location.pathname);
+  const emailConnectProvider = getEmailConnectTarget(location.pathname, location.search);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => window.localStorage.getItem('waterlily-authenticated') === 'true');
+  const [advisorEmail, setAdvisorEmail] = useState(() => window.localStorage.getItem('waterlily-auth-email') ?? '');
+  const [advisorName, setAdvisorName] = useState(() => {
+    const storedName = window.localStorage.getItem('waterlily-advisor-name');
+    return storedName && storedName !== 'Kate Moore' ? storedName : 'Advisor';
+  });
+  const [clients, setClients] = useState(() => loadClients());
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState(statusOptions[0]);
   const [intakeFilter, setIntakeFilter] = useState(intakeOptions[0]);
   const [stepFilter, setStepFilter] = useState(stepOptions[0]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [addMode, setAddMode] = useState<AddMode | null>(null);
-  const [reviewReady, setReviewReady] = useState(false);
-  const [form, setForm] = useState({
-    name: 'Sarah Miller',
-    email: 'sarah.miller@gmail.com',
-    phone: '+1 (415) 555-0123',
-    goal: 'Retirement planning',
-    risk: 'Moderate',
-    birthDate: '',
-  });
+  const [dateRange, setDateRange] = useState(dateRangeOptions[0]);
+  const [theme, setTheme] = useState<(typeof themeOptions)[number]>('Light');
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form, setForm] = useState<ClientForm>(() => createBlankClientForm());
+  const [showMobileAccountMenu, setShowMobileAccountMenu] = useState(false);
+
+  useEffect(() => {
+    if (!intakeToken && !emailConnectProvider && !isAuthenticated && location.pathname !== '/') {
+      navigate('/', { replace: true });
+    }
+  }, [emailConnectProvider, intakeToken, isAuthenticated, location.pathname, navigate]);
+
+  useEffect(() => {
+    window.localStorage.setItem('waterlily-auth-email', advisorEmail);
+  }, [advisorEmail]);
+
+  useEffect(() => {
+    window.localStorage.setItem('waterlily-advisor-name', advisorName);
+  }, [advisorName]);
+
+  useEffect(() => {
+    saveClients(clients);
+  }, [clients]);
+
+  useEffect(() => {
+    const syncClients = () => setClients(loadClients());
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === clientsStorageKey) {
+        syncClients();
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('waterlily-clients-updated', syncClients as EventListener);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('waterlily-clients-updated', syncClients as EventListener);
+    };
+  }, []);
 
   const filteredClients = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -172,603 +101,340 @@ function App() {
       totalClients: 128 + extraClients,
       invited: clients.filter((client) => client.status === 'Invited').length + 21,
       inProgress: clients.filter((client) => client.status === 'In Progress').length + 40,
-      completed: clients.filter((client) => client.status === 'Completed').length + 57,
-      quickPlans: clients.filter((client) => client.status === 'Quick Plan').length + 5,
+      completed: clients.filter((client) => client.status === 'Completed').length + 56,
+      quickPlans: clients.filter((client) => client.intakeType === 'Quick Plan').length + 5,
     };
   }, [clients]);
 
+  const resetFilters = () => {
+    setQuery('');
+    setStatusFilter(statusOptions[0]);
+    setIntakeFilter(intakeOptions[0]);
+    setStepFilter(stepOptions[0]);
+    setDateRange(dateRangeOptions[0]);
+    setShowMobileFilters(false);
+  };
+
   const openAddFlow = () => {
-    setIsModalOpen(true);
-    setAddMode(null);
-    setReviewReady(false);
+    setForm(createBlankClientForm());
+    navigate('/add-client');
   };
 
   const closeAddFlow = () => {
-    setIsModalOpen(false);
-    setAddMode(null);
-    setReviewReady(false);
+    navigate('/');
+    setIsSubmitting(false);
+    setForm(createBlankClientForm());
   };
 
-  const updateField = (field: keyof typeof form, value: string) => {
+  const updateField = (field: keyof ClientForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
-  const addClient = (mode: AddMode) => {
-    const nextClient: Client = {
-      id: Date.now(),
-      name: form.name || 'New Client',
-      initials: getInitials(form.name || 'New Client'),
-      email: form.email || 'client@example.com',
-      phone: form.phone || 'No phone added',
-      status: mode === 'quick' ? 'Quick Plan' : mode === 'behalf' ? 'In Progress' : 'Invited',
-      intakeType: mode === 'quick' ? 'Quick Plan' : 'Full Intake',
-      step: mode === 'quick' ? 'Quick plan created' : mode === 'behalf' ? 'Step 1 of 6' : 'Not started',
-      progress: mode === 'behalf' ? 17 : 0,
-      invitedOn: todayLabel,
-      lastActivity: todayLabel,
-      tone: 'violet',
-    };
+  const removeClient = (clientId: number) => {
+    setClients((current) => current.filter((client) => client.id !== clientId));
+  };
 
-    setClients((current) => [nextClient, ...current]);
+  const persistClientFromForm = (outcome: AddOutcome) => {
+    const normalizedEmail = (form.email || 'client@example.com').trim().toLowerCase();
+    const normalizedName = form.name || 'New Client';
+
+    setClients((current) => {
+      const index = current.findIndex((client) => client.email.trim().toLowerCase() === normalizedEmail);
+      const existing = index >= 0 ? current[index] : null;
+      const nextClient: Client = {
+        id: existing?.id ?? Date.now(),
+        name: normalizedName,
+        initials: getInitials(normalizedName),
+        email: normalizedEmail,
+        phone: form.phone || 'No phone added',
+        status: outcome === 'quick' ? 'Completed' : outcome === 'behalf' ? 'In Progress' : 'Invited',
+        intakeType: outcome === 'quick' ? 'Quick Plan' : 'Full Intake',
+        step: outcome === 'quick' ? 'Quick plan created' : outcome === 'behalf' ? 'Step 1 of 6' : 'Not started',
+        progress: outcome === 'behalf' ? 17 : outcome === 'quick' ? 100 : 0,
+        invitedOn: existing?.invitedOn ?? todayLabel,
+        lastActivity: todayLabel,
+        tone: existing?.tone ?? 'violet',
+      };
+
+      if (index >= 0) {
+        const next = [...current];
+        next[index] = nextClient;
+        return next;
+      }
+
+      return [nextClient, ...current];
+    });
+  };
+
+  const addClient = (outcome: AddOutcome) => {
+    persistClientFromForm(outcome);
     closeAddFlow();
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (addMode === 'invite' && !reviewReady) {
-      setReviewReady(true);
-      return;
-    }
-
-    if (addMode) {
-      addClient(addMode);
-    }
+  const completeAddFlow = (outcome: AddOutcome) => {
+    setIsSubmitting(true);
+    window.setTimeout(() => addClient(outcome), 260);
   };
 
+  const nextTheme = theme === 'Light' ? 'Dark' : 'Light';
+  const addClientRoute = getAddClientRoute(location.pathname);
+  const selectedClientId = getClientDetailId(location.pathname);
+  const selectedClient = selectedClientId ? clients.find((client) => client.id === selectedClientId) : null;
+  const toggleTheme = () => setTheme(nextTheme);
+  const isDashboardRoute = location.pathname === '/' || location.pathname.startsWith('/clients/') || location.pathname.startsWith('/add-client') || location.pathname.startsWith('/intake/');
+  const isSettingsRoute = location.pathname === '/settings';
+
+  const logout = () => {
+    window.localStorage.removeItem('waterlily-authenticated');
+    window.localStorage.removeItem('waterlily-auth-email');
+    setIsAuthenticated(false);
+    setAdvisorEmail('');
+    setShowMobileAccountMenu(false);
+    navigate('/');
+  };
+
+  if (intakeToken) {
+    return <ClientIntakeForm theme={theme} token={intakeToken} onThemeToggle={toggleTheme} />;
+  }
+
+  if (emailConnectProvider) {
+    return <EmailConnectPage onThemeToggle={toggleTheme} provider={emailConnectProvider} theme={theme} />;
+  }
+
+  if (!isAuthenticated) {
+    return <AdvisorLogin onLogin={(email) => {
+      setAdvisorEmail(email);
+      setAdvisorName((current) => current || 'Advisor');
+      window.localStorage.setItem('waterlily-auth-email', email);
+      window.localStorage.setItem('waterlily-authenticated', 'true');
+      setIsAuthenticated(true);
+    }} />;
+  }
+
   return (
-    <div className="app-shell">
-      <aside className="sidebar" aria-label="Main navigation">
-        <div className="brand">Waterlily</div>
-        <nav className="nav-list">
-          <a className="nav-item active" href="#dashboard">
-            <Home size={18} />
-            <span>Dashboard</span>
-          </a>
-          <a className="nav-item" href="#settings">
-            <Settings size={18} />
-            <span>Settings</span>
-            <ChevronDown className="nav-chevron" size={16} />
-          </a>
-          <a className="nav-item" href="#connections">
-            <Link2 size={18} />
-            <span>Connections</span>
-          </a>
-          <a className="nav-item" href="#profile">
-            <User size={18} />
-            <span>Profile</span>
-          </a>
+    <div className={`${theme === 'Dark' ? 'dark' : ''} min-h-screen bg-default text-foreground lg:grid lg:grid-cols-[18rem_minmax(0,1fr)]`}>
+      <aside className="hidden h-screen flex-col border-r border-white/10 bg-black p-6 lg:sticky lg:top-0 lg:flex" aria-label="Main navigation">
+        <Heading className="mb-5 text-white" level={2}>Waterlily</Heading>
+        <div className="flex items-center gap-3 border-b border-white/10 pb-5">
+          <Avatar className="size-12 rounded-xl">
+            <Avatar.Fallback>{getInitials(advisorName || 'Advisor')}</Avatar.Fallback>
+          </Avatar>
+          <div className="min-w-0">
+            <Typography className="truncate text-white" type="body-sm" weight="medium">{advisorName}</Typography>
+            <Typography className="truncate text-white/60" type="body-xs">
+              {advisorEmail || 'advisor@example.com'}
+            </Typography>
+          </div>
+        </div>
+        <nav className="mt-6 grid gap-2" aria-label="Workspace">
+          <Button
+            className={isDashboardRoute ? 'justify-start bg-white/15 text-white hover:bg-white/15 hover:text-white' : 'justify-start text-white/80 hover:bg-white/10 hover:text-white'}
+            fullWidth
+            type="button"
+            variant="ghost"
+            onPress={() => navigate('/')}
+          >
+            Dashboard
+          </Button>
+          <Button
+            className={isSettingsRoute ? 'justify-start bg-white/15 text-white hover:bg-white/15 hover:text-white' : 'justify-start text-white/80 hover:bg-white/10 hover:text-white'}
+            fullWidth
+            type="button"
+            variant="ghost"
+            onPress={() => navigate('/settings')}
+          >
+            Settings
+          </Button>
         </nav>
-        <button className="theme-control" type="button" aria-label="Switch theme">
-          <Sun size={18} />
-          <span>Light</span>
-          <ChevronDown size={16} />
-        </button>
+        <nav className="mt-auto grid gap-2 border-t border-white/10 pt-5" aria-label="Account">
+          <Button className="justify-start text-white/80 hover:bg-white/10 hover:text-white" fullWidth type="button" variant="ghost">Help & Information</Button>
+          <Button className="justify-start gap-2 text-white/80 hover:bg-white/10 hover:text-white" fullWidth type="button" variant="ghost" onPress={logout}>
+            <LogoutGlyph className="size-4" />
+            Log out
+          </Button>
+        </nav>
       </aside>
 
-      <main className="dashboard" id="dashboard">
-        <header className="dashboard-header">
-          <div>
-            <h1>Dashboard</h1>
-            <p>Track clients and intake progress in one place.</p>
+      <main className="min-w-0 pb-40 p-3 sm:p-6 lg:p-8 lg:pb-8" id="dashboard">
+        {selectedClient ? (
+          <ClientDetailView advisorName={advisorName} client={selectedClient} theme={theme} onBack={() => navigate('/')} onThemeToggle={toggleTheme} />
+        ) : location.pathname === '/settings' ? (
+          <SettingsView
+            advisorEmail={advisorEmail || 'advisor@example.com'}
+            advisorName={advisorName}
+            onAdvisorNameChange={setAdvisorName}
+            onBack={() => navigate('/')}
+            onThemeToggle={toggleTheme}
+            theme={theme}
+          />
+        ) : (
+          <>
+        <header className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 sm:gap-3">
+          <div className="min-w-0">
+            <Heading className="hidden text-2xl leading-none sm:block sm:text-3xl lg:text-4xl" level={1}>Dashboard</Heading>
+            <Typography className="mt-1" type="body-xs" color="muted">
+              Track clients and intake progress in one place.
+            </Typography>
           </div>
-          <div className="header-actions">
-            <button className="primary-action" type="button" aria-label="Add client" onClick={openAddFlow}>
-              <Plus size={18} />
-              <span>Add Client</span>
-            </button>
-            <button className="icon-button" type="button" aria-label="Display settings">
-              <Sun size={18} />
-            </button>
+          <div className="flex items-center justify-end gap-1.5 sm:gap-2">
+            <CtaButton className="px-2.5 sm:px-3" tone="secondary" type="button" onPress={() => setClients(loadClients())}>
+              <RefreshGlyph className="size-4" />
+              <span className="hidden sm:inline">Refresh</span>
+            </CtaButton>
+            <Button
+              aria-label={`Switch to ${nextTheme} theme`}
+              isIconOnly
+              size="sm"
+              type="button"
+              variant="outline"
+              onPress={toggleTheme}
+            >
+              <span aria-hidden="true">{theme === 'Light' ? '☾' : '☀'}</span>
+            </Button>
+            <CtaButton className="px-3 sm:px-4" type="button" onPress={openAddFlow}>
+              <span className="sm:hidden">Add</span>
+              <span className="hidden sm:inline">Add Client</span>
+            </CtaButton>
           </div>
         </header>
 
-        <section className="metric-grid" aria-label="Intake summary">
-          <MetricCard icon={<Users size={28} />} label="Total Clients" value={stats.totalClients} tone="violet" note="View all" />
-          <MetricCard icon={<Mail size={28} />} label="Invited" value={stats.invited} tone="amber" note="Awaiting response" />
-          <MetricCard icon={<Clock3 size={28} />} label="In Progress" value={stats.inProgress} tone="blue" note="Intake in progress" />
-          <MetricCard icon={<CheckCircle2 size={28} />} label="Completed" value={stats.completed} tone="green" note="Intake completed" />
-          <MetricCard icon={<FileText size={28} />} label="Quick Plans" value={stats.quickPlans} tone="rose" note="Created" />
+        <section className="mb-2 flex snap-x snap-mandatory gap-2 overflow-x-auto pb-2 sm:mb-4 sm:grid sm:grid-cols-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-5" aria-label="Intake summary">
+          <div className="min-w-[12rem] max-w-[12rem] shrink-0 snap-start sm:min-w-0 sm:max-w-none">
+            <MetricCard label="Total Clients" mark="TC" value={stats.totalClients} tone="violet" note="View all" />
+          </div>
+          <div className="min-w-[12rem] max-w-[12rem] shrink-0 snap-start sm:min-w-0 sm:max-w-none">
+            <MetricCard label="Invited" mark="IN" value={stats.invited} tone="amber" note="Awaiting response" />
+          </div>
+          <div className="min-w-[12rem] max-w-[12rem] shrink-0 snap-start sm:min-w-0 sm:max-w-none">
+            <MetricCard label="In Progress" mark="IP" value={stats.inProgress} tone="blue" note="Intake in progress" />
+          </div>
+          <div className="min-w-[12rem] max-w-[12rem] shrink-0 snap-start sm:min-w-0 sm:max-w-none">
+            <MetricCard label="Completed" mark="CO" value={stats.completed} tone="green" note="Intake completed" />
+          </div>
+          <div className="min-w-[12rem] max-w-[12rem] shrink-0 snap-start sm:min-w-0 sm:max-w-none">
+            <MetricCard label="Quick Plans" mark="QP" value={stats.quickPlans} tone="rose" note="Created" />
+          </div>
         </section>
+        <Typography className="mb-4 sm:hidden" type="body-xs" color="muted">
+          Swipe sideways to see more stats.
+        </Typography>
 
-        <section className="client-panel" aria-label="Client table">
-          <div className="filters">
-            <label className="search-field">
-              <Search size={18} />
-              <input
-                aria-label="Search clients"
-                placeholder="Search clients..."
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-              <kbd>⌘ K</kbd>
-            </label>
-            <FilterSelect label="Status" value={statusFilter} options={statusOptions} onChange={setStatusFilter} />
-            <FilterSelect label="Intake Type" value={intakeFilter} options={intakeOptions} onChange={setIntakeFilter} />
-            <FilterSelect label="Step" value={stepFilter} options={stepOptions} onChange={setStepFilter} />
-            <label className="date-filter">
-              <span>Date Range</span>
-              <button type="button">
-                Last 30 days
-                <CalendarDays size={16} />
-              </button>
-            </label>
-            <button className="filter-button" type="button">
-              <SlidersHorizontal size={18} />
-              Filters
-            </button>
-          </div>
-
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Client</th>
-                  <th>Contact</th>
-                  <th>Status</th>
-                  <th>Intake Type</th>
-                  <th>Step / Progress</th>
-                  <th>Invited On</th>
-                  <th>Last Activity</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredClients.length > 0 ? (
-                  filteredClients.map((client) => (
-                    <tr key={client.id}>
-                      <td>
-                        <ClientIdentity client={client} />
-                      </td>
-                      <td>
-                        <div className="contact-stack">
-                          <span>{client.email}</span>
-                          <span>{client.phone}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <StatusPill status={client.status} />
-                      </td>
-                      <td>
-                        <span className={`type-pill ${client.intakeType === 'Quick Plan' ? 'quick' : ''}`}>{client.intakeType}</span>
-                      </td>
-                      <td>
-                        <ProgressCell client={client} />
-                      </td>
-                      <td>{client.invitedOn}</td>
-                      <td>{client.lastActivity}</td>
-                      <td>
-                        <button className="row-action" type="button" aria-label={`Actions for ${client.name}`}>
-                          <MoreHorizontal size={20} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8}>
-                      <EmptyResults onReset={() => {
-                        setQuery('');
-                        setStatusFilter(statusOptions[0]);
-                        setIntakeFilter(intakeOptions[0]);
-                        setStepFilter(stepOptions[0]);
-                      }} />
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mobile-client-list">
-            {filteredClients.length > 0 ? (
-              filteredClients.map((client) => (
-                <article className="mobile-client-card" key={client.id}>
-                  <ClientIdentity client={client} />
-                  <StatusPill status={client.status} />
-                  <ProgressCell client={client} compact />
-                </article>
-              ))
-            ) : (
-              <EmptyResults onReset={() => {
-                setQuery('');
-                setStatusFilter(statusOptions[0]);
-                setIntakeFilter(intakeOptions[0]);
-                setStepFilter(stepOptions[0]);
-              }} />
-            )}
-          </div>
-
-          <footer className="table-footer">
-            <span>
-              {filteredClients.length > 0
-                ? `Showing 1 to ${filteredClients.length} of ${stats.totalClients} clients`
-                : 'No clients match these filters'}
-            </span>
-            <div className="pagination">
-              <button type="button" aria-label="Previous page">
-                <ChevronLeft size={16} />
-              </button>
-              <button className="current" type="button">1</button>
-              <button type="button">2</button>
-              <button type="button">3</button>
-              <button type="button">...</button>
-              <button type="button">16</button>
-              <button type="button" aria-label="Next page">
-                <ChevronRight size={16} />
-              </button>
+        <Card aria-label="Client table">
+          <Card.Content className="p-0">
+          <div className="grid items-end gap-3 p-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.7fr)_repeat(4,minmax(130px,1fr))_auto]">
+            <Input
+              aria-label="Search clients"
+              className="h-10 md:col-span-2 xl:col-span-1"
+              placeholder="Search clients..."
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <CtaButton className="md:hidden" tone="secondary" type="button" onPress={() => setShowMobileFilters((current) => !current)}>Filters</CtaButton>
+            <div className={`${showMobileFilters ? 'grid' : 'hidden'} gap-3 md:contents`}>
+              <Dropdown label="Status" value={statusFilter} options={statusOptions} onChange={setStatusFilter} />
+              <Dropdown label="Intake Type" value={intakeFilter} options={intakeOptions} onChange={setIntakeFilter} />
+              <Dropdown label="Step" value={stepFilter} options={stepOptions} onChange={setStepFilter} />
+              <Dropdown label="Date Range" value={dateRange} options={dateRangeOptions} onChange={setDateRange} />
             </div>
-          </footer>
-        </section>
+            <CtaButton className="hidden self-end md:inline-flex" tone="secondary" type="button" onPress={resetFilters}>Clear</CtaButton>
+            {showMobileFilters ? <CtaButton className="md:hidden" tone="secondary" type="button" onPress={resetFilters}>Clear filters</CtaButton> : null}
+          </div>
+
+          <ClientDataView
+            clients={filteredClients}
+            totalClients={stats.totalClients}
+            onRemove={removeClient}
+            onReset={resetFilters}
+            onView={(clientId) => navigate(`/clients/${clientId}`)}
+          />
+          </Card.Content>
+        </Card>
+          </>
+        )}
       </main>
 
-      <aside className="phone-preview" aria-label="Mobile dashboard preview">
-        <div className="phone-frame">
-          <div className="phone-status">
-            <span>9:41</span>
-            <span>•••</span>
-          </div>
-          <div className="phone-header">
-            <h2>Dashboard</h2>
-            <button type="button" aria-label="Add client" onClick={openAddFlow}>
-              <Plus size={18} />
-            </button>
-          </div>
-          <div className="phone-metrics">
-            <PhoneMetric icon={<Users size={18} />} label="Total Clients" value={stats.totalClients} tone="violet" />
-            <PhoneMetric icon={<Mail size={18} />} label="Invited" value={stats.invited} tone="amber" />
-            <PhoneMetric icon={<Clock3 size={18} />} label="In Progress" value={stats.inProgress} tone="blue" />
-            <PhoneMetric icon={<CheckCircle2 size={18} />} label="Completed" value={stats.completed} tone="green" />
-            <PhoneMetric icon={<FileText size={18} />} label="Quick Plans" value={stats.quickPlans} tone="rose" />
-          </div>
-          <button className="phone-filter" type="button">
-            <SlidersHorizontal size={16} />
-            Filters
-          </button>
-          <div className="recent-heading">Recent Clients</div>
-          <div className="recent-list">
-            {clients.slice(0, 3).map((client) => (
-              <div className="recent-client" key={client.id}>
-                <ClientIdentity client={client} small />
-                <StatusPill status={client.status} />
-              </div>
-            ))}
-          </div>
-          <nav className="bottom-nav" aria-label="Mobile navigation">
-            <a className="active" href="#dashboard">
-              <Home size={18} />
-              <span>Dashboard</span>
-            </a>
-            <a href="#clients">
-              <Users size={18} />
-              <span>Clients</span>
-            </a>
-            <button type="button" aria-label="Add client" onClick={openAddFlow}>
-              <Plus size={18} />
-            </button>
-            <a href="#settings">
-              <Settings size={18} />
-              <span>Settings</span>
-            </a>
-          </nav>
-        </div>
-      </aside>
+      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 items-stretch gap-0 border-t border-default bg-background/95 px-2 py-2 backdrop-blur lg:hidden" aria-label="Mobile navigation">
+        <Button className="h-12 w-full flex-col items-center justify-center gap-0.5 px-0 text-xs" type="button" variant={location.pathname === '/' ? 'secondary' : 'ghost'} onPress={() => navigate('/')}>
+          <HomeGlyph className="size-4" />
+          Dashboard
+        </Button>
+        <Button className="h-12 w-full flex-col items-center justify-center gap-0.5 px-0 text-xs" type="button" variant={location.pathname === '/settings' ? 'secondary' : 'ghost'} onPress={() => navigate('/settings')}>
+          <SettingsGlyph className="size-4" />
+          Settings
+        </Button>
+        <Button aria-label="Advisor profile" className="h-12 w-full flex-col items-center justify-center gap-0.5 px-0 text-xs" type="button" variant="ghost" onPress={() => setShowMobileAccountMenu((current) => !current)}>
+          <Avatar className="size-5">
+            <Avatar.Fallback>{getInitials(advisorName || 'Advisor')}</Avatar.Fallback>
+          </Avatar>
+          Profile
+        </Button>
+      </nav>
 
-      {isModalOpen ? (
-        <div className="modal-backdrop" role="presentation">
-          <section className="add-modal" role="dialog" aria-modal="true" aria-labelledby="add-client-title">
-            <div className="modal-topline">
-              {addMode ? (
-                <button className="ghost-icon" type="button" aria-label="Back to add options" onClick={() => {
-                  setAddMode(null);
-                  setReviewReady(false);
-                }}>
-                  <ArrowLeft size={18} />
-                </button>
-              ) : (
-                <span />
-              )}
-              <button className="ghost-icon" type="button" aria-label="Close add client" onClick={closeAddFlow}>
-                <X size={18} />
-              </button>
-            </div>
-            <h2 id="add-client-title">{addMode ? modeLabels[addMode] : 'Add Client'}</h2>
-            <p className="modal-copy">{getModalCopy(addMode, reviewReady, form.name)}</p>
-            {addMode ? (
-              <AddClientForm
-                mode={addMode}
-                reviewReady={reviewReady}
-                form={form}
-                onFieldChange={updateField}
-                onSubmit={handleSubmit}
-                onCancel={closeAddFlow}
-              />
-            ) : (
-              <div className="add-choice-list">
-                <AddChoice
-                  icon={<Send size={20} />}
-                  title="Send intake link"
-                  body="Let the client fill the intake form."
-                  onClick={() => setAddMode('invite')}
-                />
-                <AddChoice
-                  icon={<Sparkles size={20} />}
-                  title="Quick form"
-                  body="Create a plan with minimal information."
-                  onClick={() => setAddMode('quick')}
-                />
-                <AddChoice
-                  icon={<UserRoundPlus size={20} />}
-                  title="Fill intake on behalf"
-                  body="You fill out the intake form."
-                  onClick={() => setAddMode('behalf')}
-                />
-                <button className="secondary-action full-width" type="button" onClick={closeAddFlow}>Cancel</button>
-              </div>
-            )}
-          </section>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-type MetricTone = 'violet' | 'amber' | 'blue' | 'green' | 'rose';
-
-function MetricCard({ icon, label, value, tone, note }: { icon: ReactNode; label: string; value: number; tone: MetricTone; note: string }) {
-  return (
-    <article className="metric-card">
-      <div className={`metric-icon ${tone}`}>{icon}</div>
-      <div>
-        <span>{label}</span>
-        <strong>{value}</strong>
-        <small>{note}</small>
-      </div>
-    </article>
-  );
-}
-
-function PhoneMetric({ icon, label, value, tone }: { icon: ReactNode; label: string; value: number; tone: MetricTone }) {
-  return (
-    <article className="phone-metric">
-      <div className={`phone-icon ${tone}`}>{icon}</div>
-      <div>
-        <span>{label}</span>
-        <strong>{value}</strong>
-      </div>
-    </article>
-  );
-}
-
-function FilterSelect({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
-  return (
-    <label className="filter-select">
-      <span>{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)}>
-        {options.map((option) => (
-          <option key={option}>{option}</option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function ClientIdentity({ client, small = false }: { client: Client; small?: boolean }) {
-  return (
-    <div className={`client-identity ${small ? 'small' : ''}`}>
-      <div className={`avatar ${client.tone}`}>{client.tone === 'photo' ? 'ED' : client.initials}</div>
-      <div>
-        <strong>{client.name}</strong>
-        {small ? <span>{client.step}</span> : null}
-      </div>
-    </div>
-  );
-}
-
-function StatusPill({ status }: { status: ClientStatus }) {
-  return <span className={`status-pill ${status.toLowerCase().replace(/\s+/g, '-')}`}>{status}</span>;
-}
-
-function ProgressCell({ client, compact = false }: { client: Client; compact?: boolean }) {
-  const hasProgress = client.progress > 0;
-
-  return (
-    <div className={`progress-cell ${compact ? 'compact' : ''}`}>
-      <span>{client.step}</span>
-      {hasProgress ? (
-        <div className="progress-line-wrap">
-          <div className="progress-track" aria-hidden="true">
-            <span style={{ width: `${client.progress}%` }} />
-          </div>
-          <small>{client.progress}%</small>
-        </div>
-      ) : (
-        <small>-</small>
-      )}
-    </div>
-  );
-}
-
-function AddChoice({ icon, title, body, onClick }: { icon: ReactNode; title: string; body: string; onClick: () => void }) {
-  return (
-    <button className="add-choice" type="button" onClick={onClick}>
-      <span className="choice-icon">{icon}</span>
-      <span>
-        <strong>{title}</strong>
-        <small>{body}</small>
-      </span>
-      <ChevronRight size={18} />
-    </button>
-  );
-}
-
-function EmptyResults({ onReset }: { onReset: () => void }) {
-  return (
-    <div className="empty-results">
-      <strong>No clients found</strong>
-      <span>Clear the filters or search for another client.</span>
-      <button className="secondary-action" type="button" onClick={onReset}>Clear filters</button>
-    </div>
-  );
-}
-
-function AddClientForm({
-  mode,
-  reviewReady,
-  form,
-  onFieldChange,
-  onSubmit,
-  onCancel,
-}: {
-  mode: AddMode;
-  reviewReady: boolean;
-  form: {
-    name: string;
-    email: string;
-    phone: string;
-    goal: string;
-    risk: string;
-    birthDate: string;
-  };
-  onFieldChange: (field: keyof typeof form, value: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onCancel: () => void;
-}) {
-  if (mode === 'invite' && reviewReady) {
-    return (
-      <form className="modal-form" onSubmit={onSubmit}>
-        <div className="share-link">
-          <span>waterlily.io/i/8fha8x</span>
-          <button type="button">
-            <Copy size={16} />
-            Copy
-          </button>
-        </div>
-        <div className="send-options">
-          <button type="submit">
-            <Mail size={18} />
-            Send via Email
-            <ChevronRight size={18} />
-          </button>
-          <button type="submit">
-            <MessageCircle size={18} />
-            Send via SMS
-            <ChevronRight size={18} />
-          </button>
-          <button type="submit">
-            <MessageCircle size={18} />
-            Send via WhatsApp
-            <ChevronRight size={18} />
-          </button>
-          <button type="submit">
-            <Link2 size={18} />
-            Copy link
-            <ChevronRight size={18} />
-          </button>
-        </div>
-        <button className="secondary-action full-width" type="button" onClick={onCancel}>Done</button>
-      </form>
-    );
-  }
-
-  return (
-    <form className="modal-form" onSubmit={onSubmit}>
-      {mode === 'behalf' ? (
-        <div className="form-progress">
-          <div>
-            <span>Step 1 of 6</span>
-            <strong>17%</strong>
-          </div>
-          <div className="progress-track">
-            <span style={{ width: '17%' }} />
-          </div>
+      {showMobileAccountMenu ? (
+        <div className="fixed inset-x-3 bottom-16 z-30 lg:hidden">
+          <Card className="ml-auto w-full max-w-64 shadow-lg">
+            <Card.Content className="grid gap-2 p-3">
+              <Typography type="body-xs" color="muted">
+                Signed in as {advisorEmail || 'advisor@example.com'}
+              </Typography>
+              <Button className="justify-start gap-2" type="button" variant="ghost" onPress={logout}>
+                <LogoutGlyph className="size-4" />
+                Log out
+              </Button>
+            </Card.Content>
+          </Card>
         </div>
       ) : null}
 
-      <label>
-        Full name
-        <input value={form.name} onChange={(event) => onFieldChange('name', event.target.value)} required />
-      </label>
-
-      {mode !== 'quick' ? (
-        <>
-          <label>
-            Email
-            <input type="email" value={form.email} onChange={(event) => onFieldChange('email', event.target.value)} required />
-          </label>
-          <label>
-            Phone
-            <input value={form.phone} onChange={(event) => onFieldChange('phone', event.target.value)} />
-          </label>
-        </>
-      ) : (
-        <>
-          <label>
-            Primary goal
-            <select value={form.goal} onChange={(event) => onFieldChange('goal', event.target.value)}>
-              <option>Retirement planning</option>
-              <option>Insurance review</option>
-              <option>Family care planning</option>
-            </select>
-          </label>
-          <label>
-            Risk tolerance
-            <select value={form.risk} onChange={(event) => onFieldChange('risk', event.target.value)}>
-              <option>Moderate</option>
-              <option>Conservative</option>
-              <option>Growth focused</option>
-            </select>
-          </label>
-        </>
-      )}
-
-      {mode === 'behalf' ? (
-        <label>
-          Date of birth
-          <input type="date" value={form.birthDate} onChange={(event) => onFieldChange('birthDate', event.target.value)} />
-        </label>
-      ) : null}
-
-      <div className="modal-actions">
-        <button className="secondary-action" type="button" onClick={onCancel}>
-          Save and exit
-        </button>
-        <button className="primary-action" type="submit">
-          {mode === 'invite' ? 'Continue' : mode === 'quick' ? 'Create Plan' : 'Next'}
-        </button>
-      </div>
-    </form>
+      <AddClientModal
+        route={addClientRoute}
+        form={form}
+        isOpen={Boolean(addClientRoute)}
+        isSubmitting={isSubmitting}
+        onCancel={closeAddFlow}
+        onComplete={completeAddFlow}
+        onFieldChange={updateField}
+        onPersistDraft={() => persistClientFromForm('invited')}
+        onNavigate={(path) => navigate(path)}
+        onOpenChange={(isOpen) => {
+          if (isOpen) {
+            navigate('/add-client');
+          } else {
+            closeAddFlow();
+          }
+        }}
+      />
+    </div>
   );
 }
 
-function getModalCopy(mode: AddMode | null, reviewReady: boolean, name: string) {
-  if (!mode) {
-    return 'How would you like to add this client?';
+function getAddClientRoute(pathname: string) {
+  if (pathname === '/add-client') {
+    return 'choose' as const;
   }
 
-  if (mode === 'invite' && reviewReady) {
-    return `Share the intake link with ${name || 'this client'} using any option below.`;
+  if (pathname === '/add-client/quick') {
+    return 'quick' as const;
   }
 
-  if (mode === 'invite') {
-    return 'Enter client details to create a personalized invite.';
+  if (pathname === '/add-client/intake') {
+    return 'intake-details' as const;
   }
 
-  if (mode === 'quick') {
-    return 'Provide basic information to create a plan.';
+  if (pathname === '/add-client/intake/link') {
+    return 'intake-link' as const;
   }
 
-  return 'Start the full intake while the client is with you.';
+  if (pathname === '/add-client/intake/share') {
+    return 'intake-share' as const;
+  }
+
+  return null;
+}
+
+function getClientDetailId(pathname: string) {
+  const match = pathname.match(/^\/clients\/(\d+)$/);
+  return match ? Number(match[1]) : null;
 }
 
 function getInitials(name: string) {
@@ -778,6 +444,60 @@ function getInitials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join('');
+}
+
+function createBlankClientForm(): ClientForm {
+  return {
+    name: '',
+    email: '',
+    phone: '',
+    goal: '',
+    risk: '',
+    birthDate: '',
+    reason: '',
+    careConcern: '',
+    monthlyBenefit: '',
+    coverageStart: '',
+  };
+}
+
+function RefreshGlyph({ className = '' }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 0 1-15.6 6.4" />
+      <path d="M3 12a9 9 0 0 1 15.6-6.4" />
+      <path d="m17 4h2.5V1.5" />
+      <path d="m7 20h-2.5V22.5" />
+    </svg>
+  );
+}
+
+function HomeGlyph({ className = '' }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 10.5 12 3l9 7.5" />
+      <path d="M5 10v9h14v-9" />
+    </svg>
+  );
+}
+
+function SettingsGlyph({ className = '' }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.9 1.9 0 0 0 .38 2.09l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.9 1.9 0 0 0 15 19.4a1.9 1.9 0 0 0-1 1.72V22a2 2 0 0 1-4 0v-.88a1.9 1.9 0 0 0-1-1.72 1.9 1.9 0 0 0-2.09.38l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.9 1.9 0 0 0 4.6 15a1.9 1.9 0 0 0-1.72-1H2a2 2 0 0 1 0-4h.88a1.9 1.9 0 0 0 1.72-1 1.9 1.9 0 0 0-.38-2.09l-.06-.06A2 2 0 0 1 7 3.02l.06.06A1.9 1.9 0 0 0 9 3.4 1.9 1.9 0 0 0 10 1.68V1a2 2 0 0 1 4 0v.68a1.9 1.9 0 0 0 1 1.72 1.9 1.9 0 0 0 2.09-.38l.06-.06A2 2 0 0 1 20.98 7l-.06.06A1.9 1.9 0 0 0 20.6 9a1.9 1.9 0 0 0 1.72 1H23a2 2 0 0 1 0 4h-.68a1.9 1.9 0 0 0-1.72 1Z" />
+    </svg>
+  );
+}
+
+function LogoutGlyph({ className = '' }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 7V5a1 1 0 0 0-1-1H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7a1 1 0 0 0 1-1v-2" />
+      <path d="M11 12h9" />
+      <path d="m16 9 4 3-4 3" />
+    </svg>
+  );
 }
 
 export default App;

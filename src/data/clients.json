@@ -1,0 +1,74 @@
+{
+  "clients": [
+    {
+      "id": 1,
+      "name": "Sarah Miller",
+      "initials": "SM",
+      "email": "sarah.miller@gmail.com",
+      "phone": "+1 (415) 555-0123",
+      "status": "Invited",
+      "intakeType": "Full Intake",
+      "step": "Not started",
+      "progress": 0,
+      "invitedOn": "May 20, 2025 10:30 AM",
+      "lastActivity": "May 20, 2025 10:30 AM",
+      "tone": "violet"
+    },
+    {
+      "id": 2,
+      "name": "Robert Johnson",
+      "initials": "RJ",
+      "email": "robert.j@example.com",
+      "phone": "+1 (415) 555-0188",
+      "status": "Invited",
+      "intakeType": "Full Intake",
+      "step": "Not started",
+      "progress": 0,
+      "invitedOn": "May 19, 2025 2:15 PM",
+      "lastActivity": "May 19, 2025 2:15 PM",
+      "tone": "mint"
+    },
+    {
+      "id": 3,
+      "name": "Emily Davis",
+      "initials": "ED",
+      "email": "emily.davis@company.com",
+      "phone": "+1 (415) 555-0199",
+      "status": "In Progress",
+      "intakeType": "Full Intake",
+      "step": "Step 2 of 6",
+      "progress": 33,
+      "invitedOn": "May 18, 2025 11:20 AM",
+      "lastActivity": "Today 9:15 AM",
+      "tone": "photo"
+    },
+    {
+      "id": 4,
+      "name": "Lisa Williams",
+      "initials": "LW",
+      "email": "lisa.williams@gmail.com",
+      "phone": "+1 (415) 555-0111",
+      "status": "Completed",
+      "intakeType": "Full Intake",
+      "step": "Completed",
+      "progress": 100,
+      "invitedOn": "May 10, 2025 9:00 AM",
+      "lastActivity": "May 12, 2025 10:00 AM",
+      "tone": "amber"
+    },
+    {
+      "id": 5,
+      "name": "Amanda Taylor",
+      "initials": "AT",
+      "email": "amanda.taylor@gmail.com",
+      "phone": "+1 (415) 555-0177",
+      "status": "Completed",
+      "intakeType": "Quick Plan",
+      "step": "Quick plan created",
+      "progress": 0,
+      "invitedOn": "May 21, 2025 9:45 AM",
+      "lastActivity": "May 21, 2025 9:45 AM",
+      "tone": "rose"
+    }
+  ]
+}
