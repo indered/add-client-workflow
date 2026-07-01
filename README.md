@@ -2,7 +2,7 @@
 
 ## Overview
 
-Add Client Workflow is a Vite React starter app built with TypeScript, HeroUI, and Tailwind CSS.
+Add Client Workflow is a Vite React dashboard for advisors who need to add clients, track intake progress, and start quick plans.
 
 ### Live app
 
@@ -19,10 +19,17 @@ Add Client Workflow is a Vite React starter app built with TypeScript, HeroUI, a
 - HeroUI
 - Tailwind CSS
 
-### Starter screen
+### Dashboard
 
-- A clean first screen that confirms the app is live.
-- Starter cards for the design system, deploy path, and clean base.
+- Summary cards for total clients, invited clients, active intakes, completed intakes, and quick plans.
+- A table view for all clients with status, intake type, step, progress, and activity dates.
+- A mobile-ready client list for smaller screens.
+
+### Add client workflow
+
+- Send a full intake link to a client.
+- Create a quick plan with a shorter form.
+- Fill the full intake on the client's behalf.
 - No auth, database, analytics, or backend services yet.
 
 ## Getting Started
@@ -57,7 +64,7 @@ npm run preview
 
 ### Main files
 
-- `src/App.tsx` contains the starter screen.
+- `src/App.tsx` contains the dashboard, sample client data, filters, and add-client modal.
 - `src/main.tsx` mounts the React app.
 - `src/styles.css` loads Tailwind CSS and global styles.
 - `vite.config.ts` configures Vite and Tailwind.
