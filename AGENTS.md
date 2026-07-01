@@ -15,3 +15,4 @@
 - Share triggers and sidebar identity drifted out of sync -> dropdown wrappers fought the button layout and the profile subtitle was hardcoded -> keep shared actions on simple full-width buttons when alignment matters and render the sidebar role line from the signed-in auth state.
 - `/email-connect` and intake deep links 404ed on Vercel -> the SPA rewrite was not present in the deployed build -> keep `vercel.json` rewrites deployed with every release.
 - Duplicate intake-link copy action kept showing in the client "More" menu -> the detail dropdown exposed the same action already available elsewhere -> keep the detail menu focused on resend and launch actions only.
+- Settings kept splitting into separate desktop cards -> the page header and profile controls were rendered in different containers -> keep the signed-in settings screen inside one desktop card and pin the theme toggle to the top-right of that card.

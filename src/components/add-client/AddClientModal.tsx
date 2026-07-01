@@ -42,16 +42,16 @@ export function AddClientModal({
 
   return (
     <ModalShell isOpen={isOpen} onOpenChange={onOpenChange}>
-      <Modal.Header className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
+      <Modal.Header className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 pt-4 sm:gap-3 sm:px-5">
         {showBack ? (
-          <Button size="sm" type="button" variant="secondary" onPress={() => onNavigate(getBackPath(currentRoute))}>
+          <Button className="shrink-0" size="sm" type="button" variant="secondary" onPress={() => onNavigate(getBackPath(currentRoute))}>
             Back
           </Button>
         ) : (
           <span />
         )}
-        <Modal.Heading className="text-center">{getModalTitle(currentRoute)}</Modal.Heading>
-        <Button aria-label="Close add client" isIconOnly size="sm" type="button" variant="secondary" onPress={onCancel}>
+        <Modal.Heading className="min-w-0 text-center text-sm sm:text-base">{getModalTitle(currentRoute)}</Modal.Heading>
+        <Button aria-label="Close add client" className="shrink-0" isIconOnly size="sm" type="button" variant="secondary" onPress={onCancel}>
           <CloseIcon className="size-4" />
         </Button>
       </Modal.Header>

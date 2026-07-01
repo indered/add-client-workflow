@@ -1,4 +1,4 @@
-import { Button, Card, Chip, Heading, Input, Typography } from '@heroui/react';
+import { Button, Card, Chip, Input, Typography } from '@heroui/react';
 import { useEffect, useState } from 'react';
 import { CtaButton } from '../common/CtaButton';
 import {
@@ -14,11 +14,10 @@ type SettingsViewProps = {
   advisorName: string;
   theme: 'Light' | 'Dark';
   onAdvisorNameChange: (name: string) => void;
-  onBack: () => void;
   onThemeToggle: () => void;
 };
 
-export function SettingsView({ advisorEmail, advisorName, onAdvisorNameChange, onBack, onThemeToggle, theme }: SettingsViewProps) {
+export function SettingsView({ advisorEmail, advisorName, onAdvisorNameChange, onThemeToggle, theme }: SettingsViewProps) {
   const [draftName, setDraftName] = useState(advisorName);
   const [connectedProvider, setConnectedProvider] = useState<EmailProvider | null>(readConnectedEmailProvider());
   const [isConnecting, setIsConnecting] = useState<EmailProvider | null>(null);
@@ -45,41 +44,25 @@ export function SettingsView({ advisorEmail, advisorName, onAdvisorNameChange, o
   return (
     <div className="grid gap-4">
       <Card>
-        <Card.Content className="grid gap-4 p-4 sm:p-5">
+        <Card.Content className="grid gap-5 p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
-            <div className="grid gap-1">
-              <Heading level={2}>Settings</Heading>
-              <Typography type="body-xs" color="muted">
-                Manage the signed-in profile and mailbox connections.
-              </Typography>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                aria-label={`Switch to ${theme === 'Light' ? 'Dark' : 'Light'} theme`}
-                isIconOnly
-                size="sm"
-                type="button"
-                variant="outline"
-                onPress={onThemeToggle}
-              >
-                <span aria-hidden="true">{theme === 'Light' ? '☾' : '☀'}</span>
-              </Button>
-              <Button size="sm" type="button" variant="ghost" onPress={onBack}>
-                Back to Dashboard
-              </Button>
-            </div>
-          </div>
-        </Card.Content>
-      </Card>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card className="h-full">
-          <Card.Content className="grid h-full content-start gap-4 p-4 sm:p-5">
             <div className="grid gap-1">
               <Typography type="h6" weight="semibold">Advisor profile</Typography>
               <Typography type="body-xs" color="muted">This is the name people see in Waterlily.</Typography>
             </div>
+            <Button
+              aria-label={`Switch to ${theme === 'Light' ? 'Dark' : 'Light'} theme`}
+              isIconOnly
+              size="sm"
+              type="button"
+              variant="outline"
+              onPress={onThemeToggle}
+            >
+              <span aria-hidden="true">{theme === 'Light' ? '☾' : '☀'}</span>
+            </Button>
+          </div>
 
+          <div className="grid gap-5 xl:grid-cols-2">
             <div className="grid gap-3">
               <div className="grid gap-1.5">
                 <Typography type="body-xs" weight="medium">Logged in email</Typography>
@@ -89,55 +72,52 @@ export function SettingsView({ advisorEmail, advisorName, onAdvisorNameChange, o
                 <Typography type="body-xs" weight="medium">Advisor name</Typography>
                 <Input aria-label="Advisor name" placeholder="Advisor name" value={draftName} onChange={(event) => setDraftName(event.target.value)} />
               </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <CtaButton type="button" onPress={saveName}>Save name</CtaButton>
+                <Typography type="body-xs" color="muted">
+                  The app keeps this in local storage.
+                </Typography>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <CtaButton type="button" onPress={saveName}>Save name</CtaButton>
-              <Typography type="body-xs" color="muted">
-                The app keeps this in local storage.
-              </Typography>
-            </div>
-          </Card.Content>
-        </Card>
+            <div className="grid gap-4">
+              <div className="grid gap-1">
+                <Typography type="h6" weight="semibold">Email connections</Typography>
+                <Typography type="body-xs" color="muted">Connect Gmail or Outlook so email can send from inside the app.</Typography>
+              </div>
 
-        <Card className="h-full">
-          <Card.Content className="grid h-full content-start gap-4 p-4 sm:p-5">
-            <div className="grid gap-1">
-              <Typography type="h6" weight="semibold">Email connections</Typography>
-              <Typography type="body-xs" color="muted">Connect Gmail or Outlook so email can send from inside the app.</Typography>
-            </div>
+              <div className="grid gap-3">
+                <ConnectionRow
+                  isConnected={connectedProvider === 'gmail'}
+                  isConnecting={isConnecting === 'gmail'}
+                  provider="gmail"
+                  label="Gmail"
+                  onPress={() => connectProvider('gmail')}
+                />
+                <ConnectionRow
+                  isConnected={connectedProvider === 'outlook'}
+                  isConnecting={isConnecting === 'outlook'}
+                  provider="outlook"
+                  label="Outlook"
+                  onPress={() => connectProvider('outlook')}
+                />
+              </div>
 
-            <div className="grid gap-3">
-              <ConnectionRow
-                isConnected={connectedProvider === 'gmail'}
-                isConnecting={isConnecting === 'gmail'}
-                provider="gmail"
-                label="Gmail"
-                onPress={() => connectProvider('gmail')}
-              />
-              <ConnectionRow
-                isConnected={connectedProvider === 'outlook'}
-                isConnecting={isConnecting === 'outlook'}
-                provider="outlook"
-                label="Outlook"
-                onPress={() => connectProvider('outlook')}
-              />
+              <div className="flex flex-wrap items-center gap-3">
+                {connectedProvider ? (
+                  <Chip color="success" size="sm" variant="soft">
+                    <Chip.Label>{getProviderLabel(connectedProvider)} connected</Chip.Label>
+                  </Chip>
+                ) : (
+                  <Chip size="sm" variant="soft">
+                    <Chip.Label>No mailbox connected</Chip.Label>
+                  </Chip>
+                )}
+              </div>
             </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              {connectedProvider ? (
-                <Chip color="success" size="sm" variant="soft">
-                  <Chip.Label>{getProviderLabel(connectedProvider)} connected</Chip.Label>
-                </Chip>
-              ) : (
-                <Chip size="sm" variant="soft">
-                  <Chip.Label>No mailbox connected</Chip.Label>
-                </Chip>
-              )}
-            </div>
-          </Card.Content>
-        </Card>
-      </div>
+          </div>
+        </Card.Content>
+      </Card>
     </div>
   );
 }

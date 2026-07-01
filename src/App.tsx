@@ -263,7 +263,6 @@ function App() {
             advisorEmail={advisorEmail || 'advisor@example.com'}
             advisorName={advisorName}
             onAdvisorNameChange={setAdvisorName}
-            onBack={() => navigate('/')}
             onThemeToggle={toggleTheme}
             theme={theme}
           />

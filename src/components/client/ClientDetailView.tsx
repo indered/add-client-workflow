@@ -84,11 +84,36 @@ export function ClientDetailView({ advisorName, client, theme, onBack, onThemeTo
     setIsEditOpen(false);
   };
 
-      return (
+  return (
     <div className="grid gap-4">
       <Card>
         <Card.Content className="grid gap-3 p-3 sm:p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 lg:hidden">
+            <Button size="sm" type="button" variant="ghost" onPress={onBack}>
+              <IconChevronLeft className="size-4" />
+              Back to Dashboard
+            </Button>
+            <Button
+              aria-label={`Switch to ${theme === 'Light' ? 'Dark' : 'Light'} theme`}
+              className="shrink-0"
+              isIconOnly
+              size="sm"
+              type="button"
+              variant="outline"
+              onPress={onThemeToggle}
+            >
+              <span aria-hidden="true">{theme === 'Light' ? '☾' : '☀'}</span>
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 lg:hidden">
+            <CtaButton className="h-10" tone="secondary" type="button" onPress={() => setIsEmailShareOpen(true)}>
+              Send invite on email
+            </CtaButton>
+            <ShareActions client={client} intakeLink={intakeLink} onCopyLink={copyIntakeLink} onOpenEmail={() => setIsEmailShareOpen(true)} />
+            <CopyLinkButton copyState={copyState} onPress={copyIntakeLink} />
+            <DetailActions client={client} intakeLink={intakeLink} onOpenEmail={() => setIsEmailShareOpen(true)} />
+          </div>
+          <div className="hidden items-start justify-between gap-3 lg:flex">
             <Button size="sm" type="button" variant="ghost" onPress={onBack}>
               <IconChevronLeft className="size-4" />
               Back to Dashboard
