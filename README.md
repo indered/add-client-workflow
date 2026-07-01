@@ -19,6 +19,13 @@ Add Client Workflow is a Vite React dashboard for advisors who need to add clien
 - HeroUI
 - Tailwind CSS
 
+### What's in the app
+
+- A simple dashboard for an advisor to add new clients, view existing clients, and check intake progress.
+- An advisor can also fill out the form on the client's behalf.
+- Intake types are full intake and quick plan.
+- A table view shows all clients.
+
 ### Dashboard
 
 - Summary cards for total clients, invited clients, active intakes, completed intakes, and quick plans.
