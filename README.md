@@ -12,6 +12,10 @@ https://add-client-workflow.vercel.app
 **GitHub Repository:**  
 https://github.com/indered/add-client-workflow
 
+
+**walkthrough video:**  
+https://www.youtube.com/watch?v=KUykdbhrYNI
+
 ## Login Credentials
 
 You can log in using **any email address** and **any 6-digit OTP**.
