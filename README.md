@@ -8,7 +8,7 @@ Add Client Workflow is a Vite React dashboard for advisors who need to add clien
 
 - Production URL: https://add-client-workflow.vercel.app
 - GitHub repo: https://github.com/indered/add-client-workflow
-- Login creds - any email or otp of siz letters
+- Login creds - any email or otp of 6 letters
 - Example - email: advisor@waterlily.com, otp: 000000
 
 ### What's in the app
