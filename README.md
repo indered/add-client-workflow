@@ -9,16 +9,6 @@ Add Client Workflow is a Vite React dashboard for advisors who need to add clien
 - Production URL: https://add-client-workflow.vercel.app
 - GitHub repo: https://github.com/indered/add-client-workflow
 
-## What Is Included
-
-### Frontend stack
-
-- React 19
-- TypeScript
-- Vite
-- HeroUI
-- Tailwind CSS
-
 ### What's in the app
 
 - A simple dashboard for an advisor to add new clients, view existing clients, and check intake progress.
